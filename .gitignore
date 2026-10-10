@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 *.log
+
+# synthetic test frames — replace via tools/build-hero-frames.sh
+assets/frames/

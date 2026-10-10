@@ -190,6 +190,11 @@
       let raf;
       const frame = () => {
         raf = requestAnimationFrame(frame);
+        // real head-turn frames loaded — stop burning GPU on the fake one
+        if (hero.classList.contains('frames-on')) {
+          cancelAnimationFrame(raf);
+          return;
+        }
         if (!visible) return;
 
         cx += (tx - cx) * 0.07;
