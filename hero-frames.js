@@ -5,7 +5,8 @@
    the pointer angle around the face. A center dead zone keeps
    the portrait facing forward when the pointer is nearby.
 
-   Expects, produced by tools/build-hero-frames.sh:
+   Expects, produced by tools/build-hero-frames.sh and then
+   evened out by tools/clean-hero-shirt.sh:
      assets/veo-frames/center.webp        resting frame, shown first
      assets/veo-frames/frame_0.webp  ...  frame_63.webp
 
@@ -17,6 +18,9 @@
 
   const COUNT = 64;
   const DIR = 'assets/veo-frames/';
+  // Frame filenames never change, so a rebuild of the set would otherwise
+  // be served from cache forever. Bump this whenever the frames change.
+  const REV = '?r=2';
 
   /* The canvas shows a window onto the frame, in frame pixels (frames are
      1000x750). The window is WIDER than the frame and the frame sits inside
@@ -39,27 +43,6 @@
   const WINDOW = { w: 972, h: 750 };
   const OFFSET = { x: 20, y: 0 };
 
-  /* Collar patch — see tools/build-hero-patch.sh, which generates it.
-
-     The clip's matte is not reliable where the collar meets the neck: the
-     shadowed crease there is mid-luma and desaturated, i.e. the same values
-     as the backdrop, and it opens sideways into real background so the
-     build script's floodfill cannot tell it is interior. About half the
-     frames come out with a bite of background chewed into the collar.
-
-     It cannot be repaired by patching alpha alone: WebP discards RGB under
-     fully transparent pixels, so a hole has no colour left to recover.
-
-     patch.webp is the resting frame's collar, cut to just the two junction
-     zones where holes actually occur, feathered at its edges. Drawing it
-     OVER each live frame replaces those zones outright, so they are
-     pixel-identical all sweep long — the body is static and only the head
-     turns, which is also what makes it invisible: there is no per-frame
-     variation left to read as a seam. It deliberately does not cover the
-     central neck column (that moves, and has no holes) or the silhouette
-     edges (left to the live frame, so the outline still tracks the head). */
-  const PATCH = 'patch.webp';
-
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
   if (!hero || !img) return;
@@ -75,18 +58,10 @@
     });
 
   // Probe the resting frame first. Missing means the clip was never
-  // built — bail silently rather than logging a wall of 404s. The patch is
-  // optional: without it the frames just show their original collar holes.
-  load(DIR + 'center.webp')
-    .then((center) =>
-      load(DIR + PATCH).then(
-        (patch) => start(center, patch),
-        () => start(center, null)
-      )
-    )
-    .catch(() => {});
+  // built — bail silently rather than logging a wall of 404s.
+  load(DIR + 'center.webp' + REV).then(start).catch(() => {});
 
-  function start(center, patch) {
+  function start(center) {
     const canvas = document.createElement('canvas');
     canvas.className = 'hero-frames';
     canvas.setAttribute('aria-hidden', 'true');
@@ -122,7 +97,6 @@
       if (!frame || !cw) return;
       ctx.clearRect(0, 0, cw, ch);
       place(ctx, frame);
-      if (patch) place(ctx, patch);
     };
 
     resize();
@@ -147,7 +121,7 @@
     order
       .filter((i) => i >= 0 && i < COUNT)
       .forEach((i) => {
-        load(`${DIR}frame_${i}.webp`)
+        load(`${DIR}frame_${i}.webp${REV}`)
           .then((im) => {
             frames[i] = im;
             ready++;
