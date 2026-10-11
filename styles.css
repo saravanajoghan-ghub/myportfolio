@@ -115,6 +115,10 @@ ul,dl{margin:0;padding:0;list-style:none}
   overflow:hidden;
   min-height:min(96vh,980px);
   display:flex;flex-direction:column;
+  /* horizontal centre of the figure. The portrait and the ghost wordmark
+     both ride on this, so the left gutter stays clear for the tagline and
+     signature. Move the figure and the watermark follows it. */
+  --fig-x:66%;
 }
 
 .hero-grid-marks{position:absolute;inset:0;pointer-events:none;z-index:2}
@@ -179,19 +183,26 @@ ul,dl{margin:0;padding:0;list-style:none}
 }
 
 /* --- hero content --- */
+/* Explicit areas rather than auto-placement: the tagline sits top-left and
+   the signature bottom-left, with the middle row absorbing the slack. Both
+   stay in the left gutter so the portrait is never covered. */
 .hero-inner{
   position:relative;z-index:3;flex:1;
   max-width:calc(var(--content) + var(--pad)*2);
   margin-inline:auto;width:100%;
   padding:0 var(--pad) 52px;
   display:grid;
-  grid-template-columns:1fr auto;
-  align-items:end;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:
+    "tagline"
+    "."
+    "name";
 }
 
 .hero-ghost{
   position:absolute;z-index:1;
-  top:2%;left:50%;transform:translateX(-50%);
+  top:2%;left:var(--fig-x);transform:translateX(-50%);
   font-size:clamp(90px,17vw,250px);
   font-weight:600;letter-spacing:-.03em;
   color:rgba(255,255,255,.085);
@@ -205,7 +216,7 @@ ul,dl{margin:0;padding:0;list-style:none}
    with a soft contact shadow so it isn't floating */
 .hero-portrait{
   position:absolute;z-index:2;
-  bottom:0;left:50%;transform:translateX(-50%);
+  bottom:0;left:var(--fig-x);transform:translateX(-50%);
   height:min(88vh,860px);width:auto;max-width:none;
   pointer-events:none;
   filter:drop-shadow(0 26px 48px rgba(58,14,0,.34));
@@ -213,39 +224,44 @@ ul,dl{margin:0;padding:0;list-style:none}
 
 .hero-tagline{
   position:relative;z-index:4;
-  grid-column:1;
-  align-self:center;
-  margin-bottom:auto;margin-top:min(14vh,120px);
-  max-width:21em;
+  grid-area:tagline;
+  align-self:start;
+  margin-top:min(11vh,96px);
+  max-width:20em;
   font-size:clamp(12px,1.05vw,14px);
   line-height:1.55;
   letter-spacing:.04em;
   text-transform:uppercase;
 }
 
-.hero-name-block{position:relative;z-index:4;grid-column:1;grid-row:2}
-.hero-copyright{display:block;font-size:14px;font-weight:500;margin-bottom:4px}
+/* max-width is the hard guarantee that the signature never reaches the
+   face: the font-size alone isn't one, because a failed webfont falls back
+   to whatever `cursive` maps to locally and that can be far wider. Bounded
+   here it wraps instead of running across the portrait. */
+.hero-name-block{
+  position:relative;z-index:4;
+  grid-area:name;align-self:end;
+  max-width:min(44%,520px);
+}
+.hero-copyright{display:block;font-size:14px;font-weight:500;margin-bottom:2px}
 .hero-name{
-  font-size:clamp(54px,12.4vw,178px);
-  font-weight:600;letter-spacing:-.035em;line-height:.82;
+  font-family:'Great Vibes',cursive;
+  font-size:clamp(38px,4.4vw,76px);
+  font-weight:400;
+  letter-spacing:0;
+  line-height:1.05;
+  /* script faces overshoot their box; keep swashes and descenders intact */
+  padding:.06em .12em .12em 0;
 }
+/* the reveal mask clips descenders on a script face */
+.hero-name .anim-mask{overflow:visible}
 
-/* featured card */
-.featured-card{
-  position:relative;z-index:4;
-  grid-column:2;grid-row:1;
-  align-self:start;margin-top:min(13vh,110px);
-  width:clamp(186px,18vw,244px);
-  background:#fff;padding:7px;
-  box-shadow:0 14px 40px rgba(60,12,0,.17);
-}
-.featured-card .card-caption{background:#fff;color:var(--black);padding:11px 4px 3px}
-
-/* let's talk card */
+/* let's talk card — pinned to the hero's bottom-right corner rather than
+   placed in the grid, so it lands there regardless of how the name and
+   tagline rows resolve */
 .talk-card{
-  position:relative;z-index:4;
-  grid-column:2;grid-row:2;
-  align-self:end;
+  position:absolute;z-index:4;
+  right:var(--pad);bottom:52px;
   display:flex;align-items:center;gap:14px;
   background:var(--black);color:#fff;
   padding:12px 16px 12px 12px;
@@ -349,9 +365,8 @@ ul,dl{margin:0;padding:0;list-style:none}
    VIZ — labelled mini-interfaces used on service & work cards
    Container queries let one component scale to any card size.
    ============================================================ */
-.s-visual,.w-visual,.featured-card .viz{position:relative}
+.s-visual,.w-visual{position:relative}
 .s-visual{aspect-ratio:16/10}
-.featured-card .viz{aspect-ratio:1/1}
 
 .viz{
   container-type:inline-size;
@@ -360,15 +375,21 @@ ul,dl{margin:0;padding:0;list-style:none}
   display:flex;flex-direction:column;
   background:linear-gradient(150deg,#A8431F,#E05E33);
   color:#fff;
-  font-size:4.2cqw;
   line-height:1.35;
 }
 .s-visual .viz,.w-visual .viz{position:absolute;inset:0}
 
+/* NOTE: the cqw base size must live on the CHILDREN, never on .viz itself.
+   An element cannot query its own container, so `font-size:4.2cqw` set on
+   .viz resolves against an ancestor container — finds none — and silently
+   falls back to viewport units (4.2vw ≈ 80px on a desktop). Everything
+   inside .viz-stage then sizes in em off this base. */
+.viz-stage{font-size:4.2cqw}
+
 .viz-head{
   flex:none;display:flex;align-items:center;gap:.6em;
   padding:.95em 1.1em;
-  font-size:.82em;letter-spacing:.07em;text-transform:uppercase;
+  font-size:3.44cqw;letter-spacing:.07em;text-transform:uppercase;
   background:rgba(0,0,0,.26);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
@@ -383,10 +404,11 @@ ul,dl{margin:0;padding:0;list-style:none}
 .viz-foot{
   flex:none;display:flex;justify-content:space-between;gap:1em;
   padding:.85em 1.1em;
-  font-size:.78em;letter-spacing:.03em;
+  font-size:3.28cqw;letter-spacing:.03em;
   background:rgba(0,0,0,.3);
-  white-space:nowrap;
+  min-width:0;
 }
+.viz-foot>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .viz-ok{color:#8BEFB2}
 
 /* --- scanning sweep --- */
@@ -967,9 +989,13 @@ ul,dl{margin:0;padding:0;list-style:none}
   .big-ast{display:none}
   .footer-nav{grid-template-columns:1fr 1fr}
   .footer-wordmark{grid-column:1 / -1;justify-self:start;margin-top:40px}
-  .hero-inner{grid-template-columns:1fr}
-  .featured-card{display:none}
-  .talk-card{grid-column:1;grid-row:3;margin-top:26px}
+  /* narrow: the card stops floating bottom-right and stacks under the
+     signature, so it needs a row of its own */
+  .hero-inner{
+    grid-template-rows:auto minmax(0,1fr) auto auto;
+    grid-template-areas:"tagline" "." "name" "talk";
+  }
+  .talk-card{position:static;grid-area:talk;justify-self:start;margin-top:26px}
   .hero-portrait{height:min(72vh,660px);opacity:.92}
 }
 
@@ -977,8 +1003,8 @@ ul,dl{margin:0;padding:0;list-style:none}
   .hero{min-height:auto}
   .hero-inner{padding-bottom:36px}
   .hero-tagline{margin-top:min(9vh,70px);font-size:12px}
-  .hero-name-block{margin-top:min(32vh,300px)}
-  .hero-portrait{height:min(58vh,520px);left:58%}
+  .hero-name-block{margin-top:min(32vh,300px);max-width:100%}
+  .hero-portrait{height:min(58vh,520px)}
   .strip{flex-direction:column;align-items:flex-start;gap:20px}
   .work-grid{grid-template-columns:1fr}
   .w-banner{grid-column:auto}
@@ -1026,10 +1052,6 @@ ul,dl{margin:0;padding:0;list-style:none}
 .hero.has-parallax .hero-portrait{
   transform:translateX(-50%) translate3d(var(--px,0px),var(--py,0px),0);
   transition:transform .5s cubic-bezier(.22,1,.36,1);
-}
-.hero.has-parallax .featured-card{
-  transform:translate3d(calc(var(--px,0px) * -1.6),calc(var(--py,0px) * -1.6),0);
-  transition:transform .6s cubic-bezier(.22,1,.36,1);
 }
 
 /* --- scroll cue --- */
@@ -1176,8 +1198,7 @@ ul,dl{margin:0;padding:0;list-style:none}
 @media (prefers-reduced-motion:reduce){
   .anim-up,.hero-portrait,.hero-ghost,.hero-name .anim-mask,
   .big-ast,.band-ast,.contact-star,.band-inner::before,.scroll-cue i::after{animation:none}
-  .hero.has-parallax .hero-portrait,.hero.has-parallax .featured-card{transform:translateX(-50%)}
-  .hero.has-parallax .featured-card{transform:none}
+  .hero.has-parallax .hero-portrait{transform:translateX(-50%)}
 }
 
 /* JS pauses looping viz animations while the card is off-screen */
@@ -1193,7 +1214,7 @@ ul,dl{margin:0;padding:0;list-style:none}
    ============================================================ */
 .hero-depth{
   position:absolute;z-index:2;
-  bottom:0;left:50%;transform:translateX(-50%);
+  bottom:0;left:var(--fig-x);transform:translateX(-50%);
   height:min(88vh,860px);
   aspect-ratio:1000/1333;
   width:auto;
@@ -1217,11 +1238,16 @@ ul,dl{margin:0;padding:0;list-style:none}
    HERO FRAME SCRUBBER
    Wins over the depth canvas when assets/frames/ exists.
    ============================================================ */
+/* The frame set is a 4:3 bust (wide enough to hold both shoulders), not a
+   3:4 portrait, so it sizes by height and comes out wide. Offset right of
+   centre to leave a clear left gutter for the tagline and signature —
+   nothing should cross the figure. Height is capped so the whole frame
+   fits above the fold instead of running off the bottom. */
 .hero-frames{
   position:absolute;z-index:2;
-  bottom:0;left:50%;transform:translateX(-50%);
-  height:min(88vh,860px);
-  width:auto;
+  bottom:0;left:var(--fig-x);transform:translateX(-50%);
+  height:min(72vh,700px);
+  width:auto;max-width:none;
   pointer-events:none;
   filter:drop-shadow(0 26px 48px rgba(58,14,0,.34));
   animation:portraitin 1.3s cubic-bezier(.22,1,.36,1) .1s backwards;
@@ -1229,5 +1255,58 @@ ul,dl{margin:0;padding:0;list-style:none}
 .hero.frames-on .hero-portrait,
 .hero.frames-on .hero-depth{display:none}
 
-@media (max-width:1080px){ .hero-frames{height:min(72vh,660px)} }
-@media (max-width:720px){  .hero-frames{height:min(58vh,520px);left:58%} }
+@media (max-width:1080px){
+  .hero{--fig-x:62%}
+  .hero-frames{height:min(56vh,520px)}
+}
+@media (max-width:720px){
+  .hero{--fig-x:50%}
+  .hero-frames{height:min(40vh,360px)}
+}
+
+/* ============================================================
+   CURSOR GLOW
+   Decorates the native cursor; created by cursor-glow.js, which
+   bails on coarse pointers so these never appear on touch.
+   No blend mode — a warm translucent halo reads on both the
+   orange hero and the light sections below it, whereas `screen`
+   would vanish against white.
+   ============================================================ */
+.cursor-glow,
+.cursor-dot{
+  position:fixed;left:0;top:0;
+  border-radius:50%;
+  pointer-events:none;
+  opacity:0;
+  will-change:transform;
+}
+.cursor-glow{
+  z-index:60;
+  width:380px;height:380px;margin:-190px 0 0 -190px;
+  background:radial-gradient(circle closest-side,
+    rgba(255,216,176,.26),
+    rgba(255,142,72,.13) 46%,
+    rgba(255,120,50,0) 72%);
+  transition:opacity .35s ease,width .3s ease,height .3s ease,margin .3s ease;
+}
+.cursor-dot{
+  z-index:61;
+  width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
+  background:#fff;
+  box-shadow:0 0 10px 2px rgba(255,168,110,.85);
+  transition:opacity .3s ease,width .2s ease,height .2s ease,margin .2s ease;
+}
+.cursor-glow.is-on,.cursor-dot.is-on{opacity:1}
+
+/* over a link or button */
+.cursor-glow.is-hot{
+  width:520px;height:520px;margin:-260px 0 0 -260px;
+}
+.cursor-dot.is-hot{
+  width:13px;height:13px;margin:-6.5px 0 0 -6.5px;
+  box-shadow:0 0 16px 4px rgba(255,180,120,.95);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .cursor-glow,.cursor-dot{display:none}
+}

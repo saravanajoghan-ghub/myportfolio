@@ -4,3 +4,6 @@ node_modules/
 
 # synthetic test frames — replace via tools/build-hero-frames.sh
 assets/frames/
+
+# superseded Veo takes — good1.mp4 is the one the frames are built from
+gemini_generated_video_*.mp4

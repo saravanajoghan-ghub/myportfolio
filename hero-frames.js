@@ -2,12 +2,12 @@
    Hero frame scrubber
    ------------------------------------------------------------
    Plays a short head-turn clip as discrete frames, indexed by
-   cursor X — so the head actually rotates to follow the pointer
-   instead of faking depth.
+   the pointer angle around the face. A center dead zone keeps
+   the portrait facing forward when the pointer is nearby.
 
    Expects, produced by tools/build-hero-frames.sh:
-     assets/frames/center.webp        resting frame, shown first
-     assets/frames/frame_0.webp  ...  frame_63.webp
+     assets/veo-frames/center.webp        resting frame, shown first
+     assets/veo-frames/frame_0.webp  ...  frame_63.webp
 
    If those files are absent this does nothing at all and the
    depth-parallax hero (hero-depth.js) stays in charge.
@@ -16,7 +16,7 @@
   'use strict';
 
   const COUNT = 64;
-  const DIR = 'assets/frames/';
+  const DIR = 'assets/veo-frames/';
 
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
@@ -72,7 +72,7 @@
     draw(center);
     window.addEventListener('resize', () => {
       resize();
-      draw(frames[Math.round(cur)] || center);
+      draw(frames[last] || center);
     });
 
     /* ---- progressive preload ----
@@ -100,20 +100,35 @@
           .catch(() => {});
       });
 
-    /* ---- cursor -> frame index ---- */
-    let target = mid;
-    let cur = mid;
-    let active = false;
+    /* ---- pointer angle around the face -> frame index ---- */
+    let targetAngle = 0;
+    let currentAngle = 0;
+    let inDeadzone = true;
 
-    hero.addEventListener('pointermove', (e) => {
+    const angleForPointer = (e) => {
       if (e.pointerType === 'touch') return;
-      const r = hero.getBoundingClientRect();
-      const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
-      target = x * (COUNT - 1);
-      active = true;
-    });
+      const r = canvas.getBoundingClientRect();
+      const faceX = r.left + r.width * 0.5;
+      const faceY = r.top + r.height * 0.4;
+      const dx = e.clientX - faceX;
+      const dy = e.clientY - faceY;
+      const distance = Math.hypot(dx, dy);
+      const deadzone = Math.min(window.innerWidth, window.innerHeight) * 0.12;
+      const threshold = inDeadzone ? deadzone * 1.15 : deadzone;
+
+      if (distance < threshold) {
+        inDeadzone = true;
+        return;
+      }
+
+      inDeadzone = false;
+      targetAngle = Math.atan2(dy, dx);
+      if (targetAngle < 0) targetAngle += Math.PI * 2;
+    };
+
+    hero.addEventListener('pointermove', angleForPointer);
     hero.addEventListener('pointerleave', () => {
-      target = mid;
+      inDeadzone = true;
     });
 
     let visible = true;
@@ -138,12 +153,26 @@
       raf = requestAnimationFrame(tick);
       if (!visible || !scrubbing) return;
 
-      cur += (target - cur) * 0.14;
-      const i = Math.round(cur);
+      if (inDeadzone) {
+        if (last !== mid) {
+          last = mid;
+          resize();
+          draw(center);
+        }
+        return;
+      }
+
+      let delta = targetAngle - currentAngle;
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      if (delta < -Math.PI) delta += Math.PI * 2;
+      currentAngle += delta * 0.14;
+      if (currentAngle < 0) currentAngle += Math.PI * 2;
+      if (currentAngle >= Math.PI * 2) currentAngle -= Math.PI * 2;
+      const i = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
       if (i === last) return;
       last = i;
       resize();
-      draw(pick(cur));
+      draw(pick(i));
     };
     tick();
 
@@ -152,7 +181,6 @@
       else tick();
     });
 
-    void active;
     void AR;
   }
 })();
