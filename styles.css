@@ -1263,15 +1263,13 @@ ul,dl{margin:0;padding:0;list-style:none}
    HERO FRAME SCRUBBER
    Wins over the depth canvas when assets/veo-frames/ exists.
    ============================================================ */
-/* 972:750 is the head-centred window hero-frames.js draws into — slightly
-   wider than the frames themselves so the head lands dead centre (see the
-   comment there). Sized by height, and capped: the crown sits ~3.6% down
-   the box, so much past 790px and it starts running into the nav. */
+/* 4:3 is the cropped frame hero-frames.js draws into. Sized by height, and
+   capped: the crown sits near the top, so much past 790px runs into the nav. */
 .hero-frames{
   position:absolute;z-index:2;
   bottom:0;left:var(--fig-x);transform:translateX(-50%);
   height:min(85vh,790px);
-  aspect-ratio:972/750;
+  aspect-ratio:4/3;
   width:auto;max-width:none;
   pointer-events:none;
   filter:drop-shadow(0 26px 48px rgba(58,14,0,.34));

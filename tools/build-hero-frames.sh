@@ -19,9 +19,13 @@ WIDTH="${WIDTH:-900}"      # output frame width in px
 QUALITY="${QUALITY:-72}"   # webp quality
 OUT="${OUT:-assets/frames}"
 CROP="${CROP:-}"
+ERASE="${ERASE:-}"          # transparent x:y:w:h region after keying
 KEY_COLOR="${KEY_COLOR:-}"
+KEY_MODE="${KEY_MODE:-rgb}"          # rgb colorkey or yuv chromakey
 KEY_SIMILARITY="${KEY_SIMILARITY:-0.05}"
 KEY_BLEND="${KEY_BLEND:-0.03}"
+DESPILL="${DESPILL:-0.8}"             # green spill removal for chromakey
+DESPILL_EXPAND="${DESPILL_EXPAND:-0.12}"
 # FEATHER: alternative to KEY_COLOR for clips whose background isn't flat
 # enough to color-key cleanly (textured, vignetted, or close in hue to
 # skin). Instead of keying by color, it cuts a soft-edged oval alpha
@@ -75,6 +79,7 @@ fi
 echo "source   : $SRC"
 echo "duration : ${DUR}s"
 [[ -n "$CROP" ]] && echo "crop     : $CROP"
+[[ -n "$ERASE" ]] && echo "erase    : transparent region $ERASE"
 [[ -n "$KEY_COLOR" ]] && echo "key      : $KEY_COLOR"
 [[ -n "$FEATHER" ]] && echo "feather  : oval matte, no color key"
 [[ -n "$MATTE" ]] && echo "matte    : sat/luma cutout + floodfill hole fill"
@@ -96,7 +101,11 @@ if [[ -n "$CROP" ]]; then
   PRE+="crop=${CROP},"
 fi
 if [[ -z "$FEATHER" && -z "$MATTE" && -n "$KEY_COLOR" ]]; then
-  PRE+="colorkey=${KEY_COLOR}:${KEY_SIMILARITY}:${KEY_BLEND},"
+  if [[ "$KEY_MODE" == "chroma" ]]; then
+    PRE+="chromakey=${KEY_COLOR}:${KEY_SIMILARITY}:${KEY_BLEND},despill=type=green:mix=${DESPILL}:expand=${DESPILL_EXPAND},"
+  else
+    PRE+="colorkey=${KEY_COLOR}:${KEY_SIMILARITY}:${KEY_BLEND},"
+  fi
 fi
 PRE+="scale=${WIDTH}:-2:flags=lanczos"
 
@@ -134,6 +143,18 @@ elif [[ -n "$FEATHER" ]]; then
   FC="[0:v]${PRE},format=rgba,split=2[fg][base];[base]geq=lum='${MASK}',format=gray[a];[fg][a]alphamerge[out]"
 else
   FC="[0:v]${PRE},format=rgba[out]"
+fi
+
+# Some generated clips include a cursor cue outside the subject. Knock that
+# rectangle out after keying so it doesn't appear in the portfolio while
+# retaining the subject's shoulder beneath/alongside it.
+if [[ -n "$ERASE" ]]; then
+  IFS=: read -r EX EY EW EH <<< "$ERASE"
+  [[ -n "$EX" && -n "$EY" && -n "$EW" && -n "$EH" ]] || {
+    echo "error: ERASE must be x:y:w:h" >&2
+    exit 1
+  }
+  FC="${FC/\[out\]/,drawbox=x=${EX}:y=${EY}:w=${EW}:h=${EH}:color=black@0:t=fill:replace=1[out]}"
 fi
 
 WEBP=(-c:v libwebp -quality "$QUALITY" -compression_level 6 -preset picture)

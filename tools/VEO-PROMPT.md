@@ -67,6 +67,27 @@ flags below.
 
 ### The clip this project currently ships
 
+`good3.mp4` is now the active source for the cursor-driven hero. Build the
+transparent 4:3 frames with the checked-in selection, crop, and green key:
+
+```bash
+bash tools/build-good3-hero.sh
+```
+
+The build crops to `960x720` at `x=160`, keys the green screen, and clears
+the upper-right cursor cue while preserving the shoulders. The 64 views
+follow good3's counter-clockwise direction order, and the pointer angle is
+mapped to match; `center.webp` uses the neutral opening pose. The hero draws
+the frames directly, so the old white-shirt cleanup
+pass is not part of this build.
+
+The source moves unevenly, so the builder assigns source intervals to each
+pointer sector by eye instead of sampling the whole clip in timeline order.
+The pointer's face anchor is also lower for good3, where the eyes sit about
+43% down the crop.
+
+### Earlier good1 frame set
+
 `good1.mp4` — 1280×720, 10s, a full 360° sweep (right → down → left → up).
 This is the command that produced `assets/veo-frames/`, which is what the
 hero reads:
@@ -77,10 +98,17 @@ SEL="40,43,47,50,54,57,61,64,68,71,74,78,81,84,88,91,\
 145,148,151,154,157,160,163,166,170,173,176,179,182,185,188,191,\
 195,197,199,201,203,205,208,210,212,214,215,216,217,218,34,37"
 
-COUNT=64 WIDTH=1000 QUALITY=74 OUT=assets/veo-frames \
+COUNT=64 WIDTH=1000 QUALITY=88 OUT=assets/veo-frames \
   CROP=960:720:170:0 MATTE=1 SELECT="$SEL" CENTER_SRC=5 \
   ./tools/build-hero-frames.sh good1.mp4
+
+QUALITY=88 ./tools/clean-hero-shirt.sh
 ```
+
+The second pass is not optional — see "Evening out the shirt" below. Both
+passes encode, so the frames go through WebP twice; q88 is chosen so the
+second generation still holds the collar's fold line, which is the first
+thing to go soft. q74 visibly mushed it.
 
 The crop is wide (960 of the 1280 source) because the shoulders span
 roughly x=200–1100 in frame. A narrower crop slices them off and the hero
@@ -180,6 +208,38 @@ Expect roughly **2–4 MB** total for 64 frames at 900px. For reference, the
 site you pointed me at ships 64 frames at 1920×1080 for about 6 MB.
 
 If you change `COUNT`, update `COUNT` at the top of `hero-frames.js` to match.
+Also bump `REV` there whenever you rebuild: the filenames never change, so
+a rebuilt set is otherwise served from cache forever.
+
+### Evening out the shirt
+
+`tools/clean-hero-shirt.sh` runs over the finished frame set and does two
+things the build pass can't.
+
+**Relights each frame to the set's mean illumination.** The head turn drags
+a cast shadow across the shirt, so scrubbing makes the shoulders brighten
+and darken — on a still that's ordinary shading, but sliding under the
+pointer it reads as grime moving around the shirt. Each frame's broad
+illumination field is divided out and the set's mean put back, so every
+frame is lit alike while keeping the shading of a real photograph.
+
+The trap here, and the reason the script carries a long comment: an earlier
+version divided the field out and multiplied a *constant* back in. That is
+flat-fielding, and it erases everything above the field scale — including
+the collar, which at this frame size is a ~120px object. Both wings
+levelled to the chest's tone, the fold line went, and each wing's cast
+shadow was left sitting on a flat shirt as a bare grey triangle. Keep
+`FIELD` (170px) well above the collar's size, and relight to the mean
+rather than to a constant.
+
+**Fills the matte's collar bites.** Where the collar meets the neck there's
+a shadowed crease that is mid-luma and desaturated like the backdrop, and
+it opens sideways into real background, so the build pass's floodfill can't
+call it interior. Roughly half the frames lose a bite of collar there. The
+geometry comes from a median across the sweep — a hole is a minority at any
+given pixel — eroded so a fill can never reach the outer silhouette, and
+dilated past the hole's own feathered rim, without which the rim keeps its
+grey RGB at partial alpha and shows as an orange hairline.
 
 ## 3. Fallback behaviour
 

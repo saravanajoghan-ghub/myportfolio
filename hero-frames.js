@@ -5,8 +5,7 @@
    the pointer angle around the face. A center dead zone keeps
    the portrait facing forward when the pointer is nearby.
 
-   Expects, produced by tools/build-hero-frames.sh and then
-   evened out by tools/clean-hero-shirt.sh:
+   Expects, produced from good3.mp4 by tools/build-good3-hero.sh:
      assets/veo-frames/center.webp        resting frame, shown first
      assets/veo-frames/frame_0.webp  ...  frame_63.webp
 
@@ -20,28 +19,13 @@
   const DIR = 'assets/veo-frames/';
   // Frame filenames never change, so a rebuild of the set would otherwise
   // be served from cache forever. Bump this whenever the frames change.
-  const REV = '?r=2';
+  const REV = '?r=12';
 
-  /* The canvas shows a window onto the frame, in frame pixels (frames are
-     1000x750). The window is WIDER than the frame and the frame sits inside
-     it at OFFSET, so the drawn figure can be centred on the head rather than
-     on the image.
-
-     Why not a tight crop around the head: the collar does not close into a
-     recognisable shape until y~717 (above that it is two separate wings with
-     real background between them and the neck, which reads as a keying
-     error), and the shoulders reach x 20..952 by y 740. So the window has to
-     run the full height and hold the full shoulder span — anything tighter
-     either guillotines the collar or slices the shoulders off at a hard
-     vertical edge.
-
-     Measured across all 64 frames the head's own axis is x 466, so centring
-     needs 486px of window either side of it: 466+486 = 952 covers the widest
-     shoulder, and the 20px the window extends past the frame's left edge is
-     just transparent padding. Head lands at exactly 50% of the window. */
-  const FRAME = { w: 1000, h: 750 };
-  const WINDOW = { w: 972, h: 750 };
-  const OFFSET = { x: 20, y: 0 };
+  /* good3 is cropped to 960x720 (4:3). The shoulders fit with a small margin
+     on both sides, and the head's axis sits at the frame centre. */
+  const FRAME = { w: 960, h: 720 };
+  const WINDOW = { w: 960, h: 720 };
+  const OFFSET = { x: 0, y: 0 };
 
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
@@ -99,11 +83,24 @@
       place(ctx, frame);
     };
 
+    // Blend between the two neighboring views. The source clip has a finite
+    // number of poses; sub-frame blending prevents the face from snapping
+    // between them as the pointer moves.
+    const drawBetween = (a, b, amount) => {
+      if (!a || !b || !cw) return draw(a || b);
+      ctx.clearRect(0, 0, cw, ch);
+      place(ctx, a);
+      ctx.globalAlpha = amount;
+      place(ctx, b);
+      ctx.globalAlpha = 1;
+    };
+
     resize();
     draw(center);
     window.addEventListener('resize', () => {
       resize();
-      draw(frames[last] || center);
+      draw(center);
+      last = -1;
     });
 
     /* ---- progressive preload ----
@@ -131,7 +128,6 @@
           .catch(() => {});
       });
 
-    /* ---- pointer angle around the face -> frame index ---- */
     let targetAngle = 0;
     let currentAngle = 0;
     let inDeadzone = true;
@@ -139,10 +135,10 @@
     const angleForPointer = (e) => {
       if (e.pointerType === 'touch') return;
       const r = canvas.getBoundingClientRect();
-      // the window is built so the head sits at exactly 50% across; the
-      // head's vertical centre (source y ~263 of 750) is 35% down
+      // The head sits at the frame centre; good3's eyes are about 43% down
+      // the cropped 960x720 frame (the previous clip's anchor was higher).
       const faceX = r.left + r.width * 0.5;
-      const faceY = r.top + r.height * 0.35;
+      const faceY = r.top + r.height * 0.43;
       const dx = e.clientX - faceX;
       const dy = e.clientY - faceY;
       const distance = Math.hypot(dx, dy);
@@ -155,7 +151,9 @@
       }
 
       inDeadzone = false;
-      targetAngle = Math.atan2(dy, dx);
+      // good3 moves counter-clockwise from right -> up -> left -> down.
+      // Invert screen Y so the cursor direction selects the matching pose.
+      targetAngle = Math.atan2(-dy, dx);
       if (targetAngle < 0) targetAngle += Math.PI * 2;
     };
 
@@ -198,14 +196,21 @@
       let delta = targetAngle - currentAngle;
       if (delta > Math.PI) delta -= Math.PI * 2;
       if (delta < -Math.PI) delta += Math.PI * 2;
-      currentAngle += delta * 0.14;
+      // Cap angular travel to roughly one frame per tick. Large cursor moves
+      // then pass through the intermediate poses instead of skipping them.
+      const step = Math.sign(delta) * Math.min(Math.abs(delta) * 0.16, 0.06);
+      currentAngle += step;
       if (currentAngle < 0) currentAngle += Math.PI * 2;
       if (currentAngle >= Math.PI * 2) currentAngle -= Math.PI * 2;
-      const i = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
-      if (i === last) return;
-      last = i;
+      const position = (currentAngle / (Math.PI * 2)) * COUNT;
+      const i = Math.floor(position) % COUNT;
+      const next = (i + 1) % COUNT;
+      const fraction = position - Math.floor(position);
+      const marker = `${i}:${Math.round(fraction * 20)}`;
+      if (marker === last) return;
+      last = marker;
       resize();
-      draw(pick(i));
+      drawBetween(frames[i] || pick(i), frames[next] || pick(next), fraction);
     };
     tick();
 
