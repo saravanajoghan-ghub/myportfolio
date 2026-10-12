@@ -1,30 +1,18 @@
 /* ============================================================
    Hero frame scrubber
    ------------------------------------------------------------
-   Plays a short head-turn clip as discrete frames, indexed by
-   the pointer angle around the face. A center dead zone keeps
-   the portrait facing forward when the pointer is nearby.
-
-   Expects, produced from good4.mp4 by tools/build-good4-hero.sh:
-     assets/veo-frames/center.webp        resting frame, shown first
-     assets/veo-frames/frame_0.webp  ...  frame_63.webp
-
-   If those files are absent this does nothing at all and the
-   depth-parallax hero (hero-depth.js) stays in charge.
+   Maps the cursor angle around the face to one of 64 head-turn
+   frames from good4.mp4. All frames are loaded and decoded before
+   scrubbing begins; one crisp frame is drawn at a time to prevent
+   double-image ghosting between poses.
    ============================================================ */
 (() => {
   'use strict';
 
   const COUNT = 64;
   const DIR = 'assets/veo-frames/';
-  // Frame filenames never change, so a rebuild of the set would otherwise
-  // be served from cache forever. Bump this whenever the frames change.
   const REV = '?r=13';
-
-  /* good4 is cropped to 960x720 (4:3). */
   const FRAME = { w: 960, h: 720 };
-  const WINDOW = { w: 960, h: 720 };
-  const OFFSET = { x: 0, y: 0 };
 
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
@@ -32,16 +20,20 @@
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const load = (src) =>
-    new Promise((res, rej) => {
-      const i = new Image();
-      i.decoding = 'async';
-      i.onload = () => res(i);
-      i.onerror = rej;
-      i.src = src;
+    new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.onload = () => {
+        if (typeof image.decode === 'function') {
+          image.decode().catch(() => {}).then(() => resolve(image));
+        } else {
+          resolve(image);
+        }
+      };
+      image.onerror = reject;
+      image.src = src;
     });
 
-  // Probe the resting frame first. Missing means the clip was never
-  // built — bail silently rather than logging a wall of 404s.
   load(DIR + 'center.webp' + REV).then(start).catch(() => {});
 
   function start(center) {
@@ -49,96 +41,58 @@
     canvas.className = 'hero-frames';
     canvas.setAttribute('aria-hidden', 'true');
     const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
 
     const host = img.closest('.hero-inner') || hero;
     host.appendChild(canvas);
+    canvas.style.aspectRatio = `${FRAME.w} / ${FRAME.h}`;
     hero.classList.add('frames-on');
 
-    canvas.style.aspectRatio = `${WINDOW.w} / ${WINDOW.h}`;
-
-    let cw = 0;
-    let ch = 0;
-
-    const place = (c, frame) => {
-      const sx = cw / WINDOW.w;
-      const sy = ch / WINDOW.h;
-      c.drawImage(frame, OFFSET.x * sx, OFFSET.y * sy, FRAME.w * sx, FRAME.h * sy);
-    };
-
+    let canvasWidth = 0;
+    let canvasHeight = 0;
     const resize = () => {
-      const r = canvas.getBoundingClientRect();
-      if (!r.width || !r.height) return;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const nw = Math.round(r.width * dpr);
-      const nh = Math.round(r.height * dpr);
-      if (nw === cw && nh === ch) return;
-      cw = canvas.width = nw;
-      ch = canvas.height = nh;
+      const width = Math.round(rect.width * dpr);
+      const height = Math.round(rect.height * dpr);
+      if (width === canvasWidth && height === canvasHeight) return;
+      canvasWidth = canvas.width = width;
+      canvasHeight = canvas.height = height;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
     };
 
     const draw = (frame) => {
-      if (!frame || !cw) return;
-      ctx.clearRect(0, 0, cw, ch);
-      place(ctx, frame);
-    };
-
-    // Blend between the two neighboring views. The source clip has a finite
-    // number of poses; sub-frame blending prevents the face from snapping
-    // between them as the pointer moves.
-    const drawBetween = (a, b, amount) => {
-      if (!a || !b || !cw) return draw(a || b);
-      ctx.clearRect(0, 0, cw, ch);
-      place(ctx, a);
-      ctx.globalAlpha = amount;
-      place(ctx, b);
-      ctx.globalAlpha = 1;
+      if (!frame || !canvasWidth) return;
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      ctx.drawImage(frame, 0, 0, canvasWidth, canvasHeight);
     };
 
     resize();
     draw(center);
     window.addEventListener('resize', () => {
       resize();
+      lastFrame = -2;
       draw(center);
-      last = -1;
-    });
+    }, { passive: true });
 
-    /* ---- progressive preload ----
-       Load outward from the middle so the frames nearest the resting
-       pose arrive first and small cursor moves work almost immediately. */
     const frames = new Array(COUNT);
-    let ready = 0;
-    const mid = COUNT >> 1;
-    const order = [];
-    for (let i = 0; i < COUNT; i++) {
-      order.push(mid + (i % 2 ? -((i + 1) >> 1) : i >> 1));
-    }
-
-    let scrubbing = false;
-    order
-      .filter((i) => i >= 0 && i < COUNT)
-      .forEach((i) => {
-        load(`${DIR}frame_${i}.webp${REV}`)
-          .then((im) => {
-            frames[i] = im;
-            ready++;
-            // enough of the middle is in to feel responsive
-            if (!scrubbing && ready > COUNT * 0.35) scrubbing = true;
-          })
-          .catch(() => {});
-      });
+    const allFrames = Array.from({ length: COUNT }, (_, index) =>
+      load(`${DIR}frame_${index}.webp${REV}`).catch(() => null)
+    );
+    let framesReady = false;
 
     let targetAngle = 0;
     let currentAngle = 0;
     let inDeadzone = true;
-
-    const angleForPointer = (e) => {
-      if (e.pointerType === 'touch') return;
-      const r = canvas.getBoundingClientRect();
-      // good4's eyes sit near the upper third of the cropped frame.
-      const faceX = r.left + r.width * 0.5;
-      const faceY = r.top + r.height * 0.3;
-      const dx = e.clientX - faceX;
-      const dy = e.clientY - faceY;
+    const angleForPointer = (event) => {
+      if (event.pointerType === 'touch') return;
+      const rect = canvas.getBoundingClientRect();
+      const faceX = rect.left + rect.width * 0.5;
+      const faceY = rect.top + rect.height * 0.3;
+      const dx = event.clientX - faceX;
+      const dy = event.clientY - faceY;
       const distance = Math.hypot(dx, dy);
       const deadzone = Math.min(window.innerWidth, window.innerHeight) * 0.12;
       const threshold = inDeadzone ? deadzone * 1.15 : deadzone;
@@ -149,71 +103,98 @@
       }
 
       inDeadzone = false;
-      // good4 moves clockwise from right -> down -> left -> up.
+      // good4 turns clockwise: right -> down -> left -> up.
       targetAngle = Math.atan2(dy, dx);
       if (targetAngle < 0) targetAngle += Math.PI * 2;
     };
 
-    hero.addEventListener('pointermove', angleForPointer);
+    hero.addEventListener('pointermove', angleForPointer, { passive: true });
     hero.addEventListener('pointerleave', () => {
       inDeadzone = true;
     });
 
     let visible = true;
-    new IntersectionObserver(([e]) => (visible = e.isIntersecting), {
-      rootMargin: '100px',
-    }).observe(hero);
+    let animationFrame = 0;
+    let lastFrame = -2;
+    let previousTime = 0;
 
-    // nearest already-decoded frame, so gaps during preload don't stutter
-    const pick = (idx) => {
-      const i = Math.round(idx);
-      if (frames[i]) return frames[i];
-      for (let d = 1; d < COUNT; d++) {
-        if (frames[i - d]) return frames[i - d];
-        if (frames[i + d]) return frames[i + d];
+    const nearestFrame = (index) => {
+      if (frames[index]) return frames[index];
+      for (let distance = 1; distance < COUNT; distance++) {
+        const before = (index - distance + COUNT) % COUNT;
+        const after = (index + distance) % COUNT;
+        if (frames[before]) return frames[before];
+        if (frames[after]) return frames[after];
       }
       return center;
     };
 
-    let last = -1;
-    let raf;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      if (!visible || !scrubbing) return;
+    const lerpAngle = (current, target, amount) => {
+      let delta = (target - current) % (Math.PI * 2);
+      if (delta < -Math.PI) delta += Math.PI * 2;
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      return current + delta * amount;
+    };
 
+    const render = (time) => {
+      animationFrame = 0;
+      if (!visible || document.hidden) return;
+
+      resize();
       if (inDeadzone) {
-        if (last !== mid) {
-          last = mid;
-          resize();
+        if (lastFrame !== -1) {
           draw(center);
+          lastFrame = -1;
         }
-        return;
+      } else {
+        const elapsed = previousTime ? Math.min((time - previousTime) / 1000, 0.05) : 1 / 60;
+        const smoothing = 1 - Math.exp(-18 * elapsed);
+        currentAngle = lerpAngle(currentAngle, targetAngle, smoothing);
+        currentAngle = (currentAngle + Math.PI * 2) % (Math.PI * 2);
+
+        const frameIndex = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
+        if (frameIndex !== lastFrame) {
+          draw(nearestFrame(frameIndex));
+          lastFrame = frameIndex;
+        }
       }
 
-      let delta = targetAngle - currentAngle;
-      if (delta > Math.PI) delta -= Math.PI * 2;
-      if (delta < -Math.PI) delta += Math.PI * 2;
-      // Cap angular travel to roughly one frame per tick. Large cursor moves
-      // then pass through the intermediate poses instead of skipping them.
-      const step = Math.sign(delta) * Math.min(Math.abs(delta) * 0.16, 0.06);
-      currentAngle += step;
-      if (currentAngle < 0) currentAngle += Math.PI * 2;
-      if (currentAngle >= Math.PI * 2) currentAngle -= Math.PI * 2;
-      const position = (currentAngle / (Math.PI * 2)) * COUNT;
-      const i = Math.floor(position) % COUNT;
-      const next = (i + 1) % COUNT;
-      const fraction = position - Math.floor(position);
-      const marker = `${i}:${Math.round(fraction * 20)}`;
-      if (marker === last) return;
-      last = marker;
-      resize();
-      drawBetween(frames[i] || pick(i), frames[next] || pick(next), fraction);
+      previousTime = time;
+      animationFrame = requestAnimationFrame(render);
     };
-    tick();
+
+    const startRendering = () => {
+      if (framesReady && visible && !document.hidden && !animationFrame) {
+        animationFrame = requestAnimationFrame(render);
+      }
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) startRendering();
+      else if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      }
+    }, { rootMargin: '100px' });
+    observer.observe(hero);
 
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) cancelAnimationFrame(raf);
-      else tick();
+      if (document.hidden && animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      } else {
+        startRendering();
+      }
+    });
+
+    // Keep the center frame on screen until every direction is ready, then
+    // begin scrubbing with a complete, decoded frame set.
+    Promise.all(allFrames).then((loadedFrames) => {
+      loadedFrames.forEach((frame, index) => { frames[index] = frame; });
+      framesReady = true;
+      lastFrame = -2;
+      startRendering();
     });
   }
 })();

@@ -286,13 +286,13 @@ ul,dl{margin:0;padding:0;list-style:none}
    placed in the grid, so it lands there regardless of how the name and
    tagline rows resolve */
 .talk-card{
-  position:absolute;z-index:4;
-  right:var(--pad);bottom:52px;
+  position:absolute;z-index:5;
+  right:0;bottom:0;
   display:flex;align-items:center;gap:14px;
   background:var(--black);color:#fff;
   padding:12px 16px 12px 12px;
   border-radius:4px;
-  width:clamp(258px,25vw,330px);
+  width:clamp(270px,24vw,310px);
   transition:transform .25s ease;
 }
 .talk-card:hover{transform:translateY(-3px)}
@@ -1289,7 +1289,7 @@ ul,dl{margin:0;padding:0;list-style:none}
 .hero-frames{
   position:absolute;z-index:2;
   bottom:0;left:var(--fig-x);transform:translateX(-50%);
-  height:min(85vh,790px);
+  height:min(94vh,900px);
   aspect-ratio:4/3;
   width:auto;max-width:none;
   pointer-events:none;
@@ -1309,7 +1309,7 @@ ul,dl{margin:0;padding:0;list-style:none}
     transform:none;
     /* width-driven here, not height-driven: the window is wider than it is
        tall, so sizing by height overflows the content column on a phone */
-    width:min(100%,600px);height:auto;
+    width:min(100%,720px);height:auto;
     margin-bottom:22px;
     /* In flow the window's bottom edge is a visible straight cut across the
        chest; on desktop it hides flush against the hero's bottom edge.
@@ -1322,7 +1322,7 @@ ul,dl{margin:0;padding:0;list-style:none}
   }
 }
 @media (max-width:720px){
-  .hero-frames{width:min(100%,430px);margin-bottom:14px}
+  .hero-frames{width:min(100%,500px);margin-bottom:14px}
 }
 
 /* ============================================================
