@@ -963,6 +963,10 @@ ul,dl{margin:0;padding:0;list-style:none}
 .footer-nav a{display:inline-flex;align-items:center;gap:6px;width:fit-content;border-bottom:1px solid transparent;transition:border-color .2s ease}
 .footer-nav a:hover{border-bottom-color:var(--black)}
 .footer-nav a i{font-style:normal;color:var(--orange);font-size:12px}
+.footer-nav a.social-link{gap:8px}
+.social-link svg{width:17px;height:17px;flex:0 0 17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.social-link svg path{fill:currentColor;stroke:none}
+.social-link svg .social-icon-fill{fill:currentColor;stroke:none}
 .footer-wordmark{
   justify-self:end;line-height:.8;
   font-size:clamp(46px,9.2vw,132px);font-weight:600;letter-spacing:-.04em;
