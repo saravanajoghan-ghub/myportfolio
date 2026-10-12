@@ -13,6 +13,13 @@
   const DIR = 'assets/veo-frames/';
   const REV = '?r=13';
   const FRAME = { w: 960, h: 720 };
+  // good4 briefly returns to neutral in its final upper-right sector. Route
+  // those angles through its actual up-right/right poses instead of the
+  // neutral frames, which made the face appear to ignore the pointer there.
+  const ANGLE_FRAME = Array.from({ length: COUNT }, (_, index) => index);
+  [56, 57, 58, 59, 59, 62, 63, 0].forEach((frame, offset) => {
+    ANGLE_FRAME[56 + offset] = frame;
+  });
 
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
@@ -156,7 +163,8 @@
         currentAngle = lerpAngle(currentAngle, targetAngle, 0.26);
         currentAngle = (currentAngle + Math.PI * 2) % (Math.PI * 2);
 
-        const frameIndex = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
+        const angleIndex = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
+        const frameIndex = ANGLE_FRAME[angleIndex];
         if (frameIndex !== lastFrame) {
           draw(nearestFrame(frameIndex));
           lastFrame = frameIndex;
