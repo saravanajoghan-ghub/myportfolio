@@ -198,11 +198,12 @@ ul,dl{margin:0;padding:0;list-style:none}
   padding:0 var(--pad) 52px;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:minmax(0,1fr) auto auto;
+  grid-template-rows:minmax(0,1fr) auto auto auto;
   grid-template-areas:
     "."
     "name"
-    "tagline";
+    "tagline"
+    "social";
 }
 
 .hero-ghost{
@@ -227,7 +228,7 @@ ul,dl{margin:0;padding:0;list-style:none}
   filter:drop-shadow(0 26px 48px rgba(58,14,0,.34));
 }
 
-/* Sits under the signature. The bottom margin lifts the whole left stack
+/* Sits below the tagline. The social row's bottom margin lifts the text stack
    clear of the shoulders: the silhouette holds a left edge of ~0.25W down
    to 80% of the frame height and only flares out to ~0.05W below that, so
    the text has to stop above that flare to avoid landing on the shirt —
@@ -236,13 +237,28 @@ ul,dl{margin:0;padding:0;list-style:none}
   position:relative;z-index:4;
   grid-area:tagline;
   margin-top:16px;
-  margin-bottom:clamp(80px,13vh,135px);
+  margin-bottom:16px;
   max-width:min(40%,440px);
   font-size:clamp(12px,1.05vw,14px);
   line-height:1.55;
   letter-spacing:.04em;
   text-transform:uppercase;
 }
+.hero-social-links{
+  position:relative;z-index:4;grid-area:social;
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:clamp(80px,13vh,135px);
+}
+.hero-social-link{
+  display:grid;place-items:center;
+  width:40px;height:40px;border:1px solid rgba(255,255,255,.58);border-radius:50%;
+  color:#fff;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease;
+}
+.hero-social-link:hover{background:#fff;border-color:#fff;color:var(--orange);transform:translateY(-2px)}
+.hero-social-link:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.hero-social-link svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hero-social-link svg path{fill:currentColor;stroke:none}
+.hero-social-link svg .social-icon-fill{fill:currentColor;stroke:none}
 
 /* max-width is the hard guarantee that the signature never reaches the
    face: the font-size alone isn't one, because a failed webfont falls back
@@ -1007,11 +1023,12 @@ ul,dl{margin:0;padding:0;list-style:none}
      signature, so it needs a row of its own. Same order as the wide
      layout — slack, signature, description — with the card last. */
   .hero-inner{
-    grid-template-rows:minmax(0,1fr) auto auto auto;
-    grid-template-areas:"figure" "name" "tagline" "talk";
+    grid-template-rows:minmax(0,1fr) auto auto auto auto;
+    grid-template-areas:"figure" "name" "tagline" "social" "talk";
   }
   /* no shoulders to clear down here: the figure is above this stack */
   .hero-tagline{margin-bottom:0}
+  .hero-social-links{margin-bottom:0}
   .talk-card{position:static;grid-area:talk;justify-self:start;margin-top:26px}
   .hero-portrait{height:min(72vh,660px);opacity:.92}
   /* the card now occupies the bottom-left corner the cue used to sit in.
