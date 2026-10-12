@@ -108,15 +108,19 @@
       if (targetAngle < 0) targetAngle += Math.PI * 2;
     };
 
-    hero.addEventListener('pointermove', angleForPointer, { passive: true });
-    hero.addEventListener('pointerleave', () => {
+    // Track the pointer across the whole viewport so the direction stays tied
+    // to the face even when it crosses the hero's content or the browser edge.
+    window.addEventListener('pointermove', angleForPointer, { passive: true });
+    window.addEventListener('blur', () => {
+      inDeadzone = true;
+    });
+    window.addEventListener('pointerleave', () => {
       inDeadzone = true;
     });
 
     let visible = true;
     let animationFrame = 0;
     let lastFrame = -2;
-    let previousTime = 0;
 
     const nearestFrame = (index) => {
       if (frames[index]) return frames[index];
@@ -136,7 +140,7 @@
       return current + delta * amount;
     };
 
-    const render = (time) => {
+    const render = () => {
       animationFrame = 0;
       if (!visible || document.hidden) return;
 
@@ -147,9 +151,9 @@
           lastFrame = -1;
         }
       } else {
-        const elapsed = previousTime ? Math.min((time - previousTime) / 1000, 0.05) : 1 / 60;
-        const smoothing = 1 - Math.exp(-18 * elapsed);
-        currentAngle = lerpAngle(currentAngle, targetAngle, smoothing);
+        // Match the reference's per-frame shortest-path lerp. The frame loop
+        // keeps pointer updates out of layout/paint and avoids direction snaps.
+        currentAngle = lerpAngle(currentAngle, targetAngle, 0.26);
         currentAngle = (currentAngle + Math.PI * 2) % (Math.PI * 2);
 
         const frameIndex = Math.round((currentAngle / (Math.PI * 2)) * COUNT) % COUNT;
@@ -159,7 +163,6 @@
         }
       }
 
-      previousTime = time;
       animationFrame = requestAnimationFrame(render);
     };
 

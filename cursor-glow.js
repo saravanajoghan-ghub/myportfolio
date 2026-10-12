@@ -1,9 +1,8 @@
 /* ============================================================
    Cursor glow
    ------------------------------------------------------------
-   A warm halo that trails the pointer, plus a small dot that
-   tracks it exactly. The native cursor is left visible — this
-   decorates it rather than replacing it.
+   A small glowing dot tracks the pointer while a light ring trails
+   behind it and grows over links, buttons, and other controls.
 
    Skipped entirely for coarse pointers (no hover target) and
    for reduced-motion users.
@@ -23,10 +22,11 @@
   dot.setAttribute('aria-hidden', 'true');
 
   document.body.append(glow, dot);
+  document.body.classList.add('has-custom-cursor');
 
   // target = where the pointer is, gx/gy = where the halo has caught up to
-  let tx = innerWidth / 2;
-  let ty = innerHeight / 2;
+  let tx = -100;
+  let ty = -100;
   let gx = tx;
   let gy = ty;
   let on = false;
@@ -34,11 +34,11 @@
 
   const tick = () => {
     raf = requestAnimationFrame(tick);
-    // the dot is pinned to the pointer, the halo lags behind it
-    gx += (tx - gx) * 0.16;
-    gy += (ty - gy) * 0.16;
-    glow.style.transform = `translate3d(${gx.toFixed(1)}px,${gy.toFixed(1)}px,0)`;
-    dot.style.transform = `translate3d(${tx.toFixed(1)}px,${ty.toFixed(1)}px,0)`;
+    // The dot stays under the pointer; the ring follows with a soft lag.
+    gx += (tx - gx) * 0.22;
+    gy += (ty - gy) * 0.22;
+    glow.style.transform = `translate3d(${gx.toFixed(1)}px,${gy.toFixed(1)}px,0) translate(-50%,-50%)`;
+    dot.style.transform = `translate3d(${tx.toFixed(1)}px,${ty.toFixed(1)}px,0) translate(-50%,-50%)`;
   };
 
   document.addEventListener(
@@ -55,8 +55,8 @@
         glow.classList.add('is-on');
         dot.classList.add('is-on');
       }
-      // an interactive target under the pointer blooms the halo
-      const hot = e.target instanceof Element && e.target.closest('a,button,[role="button"]');
+      // An interactive target under the pointer blooms the ring.
+      const hot = e.target instanceof Element && e.target.closest('a,button,[role="button"],.interactive');
       glow.classList.toggle('is-hot', !!hot);
       dot.classList.toggle('is-hot', !!hot);
     },
@@ -68,7 +68,7 @@
     glow.classList.remove('is-on', 'is-hot');
     dot.classList.remove('is-on', 'is-hot');
   };
-  document.addEventListener('pointerleave', hide);
+  document.addEventListener('mouseleave', hide);
   window.addEventListener('blur', hide);
 
   document.addEventListener('visibilitychange', () => {
