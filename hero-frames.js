@@ -13,13 +13,11 @@
   const DIR = 'assets/veo-frames/';
   const REV = '?r=13';
   const FRAME = { w: 960, h: 720 };
-  // good4 briefly returns to neutral in its final upper-right sector. Route
-  // those angles through its actual up-right/right poses instead of the
-  // neutral frames, which made the face appear to ignore the pointer there.
+  // good4 briefly returns to neutral in its final upper-right sector. Hold
+  // its strongest northeast pose across that cursor sector so it never falls
+  // back to the neutral return frames.
   const ANGLE_FRAME = Array.from({ length: COUNT }, (_, index) => index);
-  [56, 57, 58, 59, 59, 62, 63, 0].forEach((frame, offset) => {
-    ANGLE_FRAME[56 + offset] = frame;
-  });
+  ANGLE_FRAME.fill(56, 56);
 
   const hero = document.querySelector('.hero');
   const img = document.querySelector('.hero-portrait');
