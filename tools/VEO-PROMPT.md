@@ -67,24 +67,23 @@ flags below.
 
 ### The clip this project currently ships
 
-`good3.mp4` is now the active source for the cursor-driven hero. Build the
+`good4.mp4` is the active source for the cursor-driven hero. Build the
 transparent 4:3 frames with the checked-in selection, crop, and green key:
 
 ```bash
-bash tools/build-good3-hero.sh
+bash tools/build-good4-hero.sh
 ```
 
-The build crops to `960x720` at `x=160`, keys the green screen, and clears
-the upper-right cursor cue while preserving the shoulders. The 64 views
-follow good3's counter-clockwise direction order, and the pointer angle is
-mapped to match; `center.webp` uses the neutral opening pose. The hero draws
-the frames directly, so the old white-shirt cleanup
-pass is not part of this build.
+The build crops to `960x720` at `x=160` and keys the green screen while
+preserving the shoulders. It samples a clockwise sweep across the full clip
+and closes the last sector through the neutral return into the opening
+right-facing pose. `center.webp` uses the neutral opening frame. The pointer
+angle mapping follows the clip's right → down → left → up order, and the
+cursor anchor is near the eyes. The hero draws the frames directly, so the
+old white-shirt cleanup pass is not part of this build.
 
 The source moves unevenly, so the builder assigns source intervals to each
 pointer sector by eye instead of sampling the whole clip in timeline order.
-The pointer's face anchor is also lower for good3, where the eyes sit about
-43% down the crop.
 
 ### Earlier good1 frame set
 

@@ -5,7 +5,7 @@
    the pointer angle around the face. A center dead zone keeps
    the portrait facing forward when the pointer is nearby.
 
-   Expects, produced from good3.mp4 by tools/build-good3-hero.sh:
+   Expects, produced from good4.mp4 by tools/build-good4-hero.sh:
      assets/veo-frames/center.webp        resting frame, shown first
      assets/veo-frames/frame_0.webp  ...  frame_63.webp
 
@@ -19,10 +19,9 @@
   const DIR = 'assets/veo-frames/';
   // Frame filenames never change, so a rebuild of the set would otherwise
   // be served from cache forever. Bump this whenever the frames change.
-  const REV = '?r=12';
+  const REV = '?r=13';
 
-  /* good3 is cropped to 960x720 (4:3). The shoulders fit with a small margin
-     on both sides, and the head's axis sits at the frame centre. */
+  /* good4 is cropped to 960x720 (4:3). */
   const FRAME = { w: 960, h: 720 };
   const WINDOW = { w: 960, h: 720 };
   const OFFSET = { x: 0, y: 0 };
@@ -135,10 +134,9 @@
     const angleForPointer = (e) => {
       if (e.pointerType === 'touch') return;
       const r = canvas.getBoundingClientRect();
-      // The head sits at the frame centre; good3's eyes are about 43% down
-      // the cropped 960x720 frame (the previous clip's anchor was higher).
+      // good4's eyes sit near the upper third of the cropped frame.
       const faceX = r.left + r.width * 0.5;
-      const faceY = r.top + r.height * 0.43;
+      const faceY = r.top + r.height * 0.3;
       const dx = e.clientX - faceX;
       const dy = e.clientY - faceY;
       const distance = Math.hypot(dx, dy);
@@ -151,9 +149,8 @@
       }
 
       inDeadzone = false;
-      // good3 moves counter-clockwise from right -> up -> left -> down.
-      // Invert screen Y so the cursor direction selects the matching pose.
-      targetAngle = Math.atan2(-dy, dx);
+      // good4 moves clockwise from right -> down -> left -> up.
+      targetAngle = Math.atan2(dy, dx);
       if (targetAngle < 0) targetAngle += Math.PI * 2;
     };
 

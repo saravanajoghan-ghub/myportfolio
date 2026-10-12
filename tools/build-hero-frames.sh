@@ -26,6 +26,7 @@ KEY_SIMILARITY="${KEY_SIMILARITY:-0.05}"
 KEY_BLEND="${KEY_BLEND:-0.03}"
 DESPILL="${DESPILL:-0.8}"             # green spill removal for chromakey
 DESPILL_EXPAND="${DESPILL_EXPAND:-0.12}"
+DESPILL_RGB="${DESPILL_RGB:-0}"       # also despill after an RGB colorkey
 # FEATHER: alternative to KEY_COLOR for clips whose background isn't flat
 # enough to color-key cleanly (textured, vignetted, or close in hue to
 # skin). Instead of keying by color, it cuts a soft-edged oval alpha
@@ -105,6 +106,9 @@ if [[ -z "$FEATHER" && -z "$MATTE" && -n "$KEY_COLOR" ]]; then
     PRE+="chromakey=${KEY_COLOR}:${KEY_SIMILARITY}:${KEY_BLEND},despill=type=green:mix=${DESPILL}:expand=${DESPILL_EXPAND},"
   else
     PRE+="colorkey=${KEY_COLOR}:${KEY_SIMILARITY}:${KEY_BLEND},"
+    if [[ "$DESPILL_RGB" == "1" ]]; then
+      PRE+="despill=type=green:mix=${DESPILL}:expand=${DESPILL_EXPAND},"
+    fi
   fi
 fi
 PRE+="scale=${WIDTH}:-2:flags=lanczos"
