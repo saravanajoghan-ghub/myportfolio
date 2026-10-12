@@ -11,7 +11,7 @@
 
   const COUNT = 64;
   const DIR = 'assets/veo-frames/';
-  const REV = '?r=13';
+  const REV = '?r=15';
   const FRAME = { w: 960, h: 720 };
   // good4 briefly returns to neutral in its final upper-right sector. Hold
   // its strongest northeast pose across that cursor sector so it never falls

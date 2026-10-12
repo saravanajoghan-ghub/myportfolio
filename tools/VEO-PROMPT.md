@@ -74,13 +74,15 @@ transparent 4:3 frames with the checked-in selection, crop, and green key:
 bash tools/build-good4-hero.sh
 ```
 
-The build crops to `960x720` at `x=160` and keys the green screen while
-preserving the shoulders. It samples a clockwise sweep across the full clip
-and closes the last sector through the neutral return into the opening
-right-facing pose. `center.webp` uses the neutral opening frame. The pointer
-angle mapping follows the clip's right → down → left → up order, and the
-cursor anchor is near the eyes. The hero draws the frames directly, so the
-old white-shirt cleanup pass is not part of this build.
+The build crops to `960x720` at `x=160`, applies light pre-key sharpening,
+keys the green screen while preserving the shoulders, and exports at WebP
+quality 96 to retain facial detail when the portrait is enlarged. It samples
+a clockwise sweep across the full clip and closes the last sector through
+the neutral return into the opening right-facing pose. `center.webp` uses the
+neutral opening frame. The pointer angle mapping follows the clip's right →
+down → left → up order, and the cursor anchor is near the eyes. The hero
+draws the frames directly, so the old white-shirt cleanup pass is not part
+of this build.
 
 The source moves unevenly, so the builder assigns source intervals to each
 pointer sector by eye instead of sampling the whole clip in timeline order.

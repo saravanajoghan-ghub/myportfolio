@@ -28,8 +28,11 @@ read -r SELECT_FRAMES CENTER_FRAME <<< "$(awk 'BEGIN {
   printf " %d\n", 0; # opening neutral frame
 }')"
 
-COUNT=64 WIDTH=960 QUALITY=88 OUT="$OUT" \
+# Hero frames are displayed larger than their 960px source width on desktop;
+# use a high WebP quality to retain facial detail during that enlargement.
+COUNT=64 WIDTH=960 QUALITY=96 OUT="$OUT" \
   CROP=960:720:160:0 \
+  UNSHARP=5:5:0.6:3:3:0.2 \
   KEY_COLOR=0x498f58 KEY_MODE=rgb \
   KEY_SIMILARITY=0.10 KEY_BLEND=0.04 \
   DESPILL_RGB=1 \

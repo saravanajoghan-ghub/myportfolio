@@ -27,6 +27,7 @@ KEY_BLEND="${KEY_BLEND:-0.03}"
 DESPILL="${DESPILL:-0.8}"             # green spill removal for chromakey
 DESPILL_EXPAND="${DESPILL_EXPAND:-0.12}"
 DESPILL_RGB="${DESPILL_RGB:-0}"       # also despill after an RGB colorkey
+UNSHARP="${UNSHARP:-}"                 # optional luma:chroma sharpening before keying
 # FEATHER: alternative to KEY_COLOR for clips whose background isn't flat
 # enough to color-key cleanly (textured, vignetted, or close in hue to
 # skin). Instead of keying by color, it cuts a soft-edged oval alpha
@@ -100,6 +101,9 @@ else
 fi
 if [[ -n "$CROP" ]]; then
   PRE+="crop=${CROP},"
+fi
+if [[ -n "$UNSHARP" ]]; then
+  PRE+="unsharp=${UNSHARP},"
 fi
 if [[ -z "$FEATHER" && -z "$MATTE" && -n "$KEY_COLOR" ]]; then
   if [[ "$KEY_MODE" == "chroma" ]]; then
